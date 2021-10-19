@@ -1,51 +1,30 @@
 version: 2.1
 
 orbs:
-  aws-ecr: circleci/aws-ecr@4.0.1
+  aws-ecr: circleci/aws-ecr@6.2.0
+  aws-ecs: circleci/aws-ecs@0.0.11
 
-jobs:
-  build_test:
-    docker:
-      - image: circleci/python:2.7.14
-    steps:
-      - checkout
-      - run:
-          name: Setup VirtualEnv
-          command: |
-            pip install --user --upgrade pip==18.0.0
-            pip install --user --no-cache-dir -r requirements.txt
-      - run:
-          name: Run Tests
-          command: |
-            python test_hello_world.py
-  docker_hub_build_push_image:
-    docker:
-      - image: circleci/python:2.7.14
-    steps:
-      - checkout
-      - setup_remote_docker:
-          docker_layer_caching: false
-      - run:
-          name: Build and push Docker image to Docker Hub
-          command: |
-            echo 'export TAG=0.1.${CIRCLE_BUILD_NUM}' >> ${BASH_ENV}
-            echo 'export IMAGE_NAME=${CIRCLE_PROJECT_REPONAME}' >> ${BASH_ENV}
-            source ${BASH_ENV}
-            docker build -t ${DOCKER_LOGIN}/${IMAGE_NAME} -t ${DOCKER_LOGIN}/${IMAGE_NAME}:${TAG} .
-            echo ${DOCKER_PWD} | docker login -u ${DOCKER_LOGIN} --password-stdin
-            docker push ${DOCKER_LOGIN}/${IMAGE_NAME}
-            
 workflows:
-  build_test_deploy:
+# Log into AWS, build and push image to Amazon ECR
+  build_and_push_image:
     jobs:
-      - build_test
-      - docker_hub_build_push_image:
-          requires:
-            - build_test
-      - aws-ecr/build_and_push_image:
-          region: AWS_REGION
+      - aws-ecr/build-and-push-image:
           account-url: AWS_ECR_ACCOUNT_URL
-          repo: ${CIRCLE_PROJECT_REPONAME}
-          tag: ${CIRCLE_BUILD_NUM}
-          requires:
-            - build_test
+          aws-access-key-id: AWS_ACCESS_KEY_ID
+          aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          create-repo: true
+          # Name of dockerfile to use. Defaults to Dockerfile.
+          dockerfile: Dockerfile
+          # AWS_REGION_ENV_VAR_NAME
+          region: AWS_DEFAULT_REGION
+          # myECRRepository
+          repo: '${MY_APP_PREFIX}'
+          # myECRRepoTag
+          tag: "${CIRCLE_BUILD_NUM}"
+      # - aws-ecs/deploy-service-update:
+      #     requires:
+      #       - aws-ecr/build-and-push-image
+      #     aws-region: AWS_DEFAULT_REGION
+      #     family: '${MY_APP_PREFIX}-service'
+      #     cluster-name: '${MY_APP_PREFIX}-cluster'
+      #     container-image-name-updates: 'container=${MY_APP_PREFIX}-service,tag=${CIRCLE_SHA1}'

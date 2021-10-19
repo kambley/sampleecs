@@ -1,14 +1,31 @@
-FROM python:2.7.14
+FROM golang:latest as builder
 
-COPY requirements.txt .
-COPY hello_world.py .
-RUN mkdir /opt/hello_world/
-RUN pip install --upgrade pip==18.0.0 \
-    && pip install --no-cache-dir -r requirements.txt \
-    && pyinstaller -F hello_world.py \
-    && cp dist/hello_world /opt/hello_world/
+# Application working directory ( Created if it doesn't exist )
+WORKDIR /build
+# Copy all files ignoring those specified in dockerignore
+COPY . /build/
 
-EXPOSE 80
-WORKDIR /opt/hello_world/
+# Installing custom packages from github
+RUN go get -d github.com/prometheus/client_golang/prometheus/promhttp
+# Execute instructions on a new layer on top of current image. Run in shell.
+RUN CGO_ENABLED=0 go build -a -installsuffix cgo --ldflags "-s -w" -o /build/main
 
-CMD [ "./hello_world" ]
+FROM alpine:3.9.4
+
+# metadata for better organization
+LABEL app="go-helloworld"
+LABEL environment="production"
+# Set workdir on current image
+WORKDIR /app
+# Leverage a separate non-root user for the application
+RUN adduser -S -D -H -h /app appuser
+# Change to a non-root user
+USER appuser
+# Add artifact from builder stage
+COPY --from=builder /build/main /app/
+# Expose port to host
+EXPOSE 8080
+# Run software with any arguments
+ENTRYPOINT ["./main"]
+
+

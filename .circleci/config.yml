@@ -23,16 +23,16 @@ workflows:
   test-build-deploy:
     jobs:
       - test
-      # - aws-ecr/build-and-push-image:
-      #     repo: "simple_plug_server"
-      #     tag: "${CIRCLE_BRANCH}_${CIRCLE_SHA1},${CIRCLE_BRANCH}_latest"
-      #     requires:
-      #       - test
-      #     filters:
-      #       branches:
-      #         only:
-      #           - master
-      #           - development
+      - aws-ecr/build-and-push-image:
+          repo: "circleci_demo"
+          tag: "${CIRCLE_BRANCH}_${CIRCLE_BUILD_NUM},${CIRCLE_BRANCH}_latest"
+          requires:
+            - test
+          filters:
+            branches:
+              only:
+                - master
+                - development
       # - aws-ecs/deploy-service-update:
       #     name: deploy-development
       #     requires:

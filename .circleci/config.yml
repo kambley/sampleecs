@@ -25,7 +25,7 @@ workflows:
       - test
       - aws-ecr/build-and-push-image:
           profile-name: "default"
-          create-repo: "yes"
+          create-repo: yes
           repo: "circleci_demo"
           tag: "${CIRCLE_BRANCH}_${CIRCLE_SHA1},${CIRCLE_BRANCH}_latest"
           requires:

@@ -33,6 +33,7 @@ workflows:
               only:
                 - master
                 - development
+                - test
       # - aws-ecs/deploy-service-update:
       #     name: deploy-development
       #     requires:

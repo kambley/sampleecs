@@ -25,7 +25,7 @@ workflows:
       - test
       - aws-ecr/build-and-push-image:
           profile-name: "default"
-          repo: "simple_plug_server"
+          # repo: "simple_plug_server"
           tag: "${CIRCLE_BRANCH}_${CIRCLE_SHA1},${CIRCLE_BRANCH}_latest"
           requires:
             - test

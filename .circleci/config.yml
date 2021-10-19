@@ -1,30 +1,69 @@
 version: 2.1
-
 orbs:
-  aws-ecr: circleci/aws-ecr@6.2.0
-  aws-ecs: circleci/aws-ecs@0.0.11
-
+  aws-ecr: circleci/aws-ecr@6.9.1
+  aws-ecs: circleci/aws-ecs@1.2.0
+jobs:
+  test:
+    docker:
+      - image: elixir:1.10
+        environment:
+          MIX_ENV: test
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run: mix local.hex --force
+      - run: mix local.rebar --force
+      - run: mix deps.get
+      - run: mix deps.compile
+      - run: mix test
+      - store_test_results:
+          path: _build/test/lib/simple_plug_server
 workflows:
-# Log into AWS, build and push image to Amazon ECR
-  build_and_push_image:
+  version: 2
+  test-build-deploy:
     jobs:
+      - test
       - aws-ecr/build-and-push-image:
-          account-url: AWS_ECR_ACCOUNT_URL
-          aws-access-key-id: AWS_ACCESS_KEY_ID
-          aws-secret-access-key: AWS_SECRET_ACCESS_KEY
-          create-repo: true
-          # Name of dockerfile to use. Defaults to Dockerfile.
-          dockerfile: Dockerfile
-          # AWS_REGION_ENV_VAR_NAME
-          region: AWS_DEFAULT_REGION
-          # myECRRepository
-          repo: '${MY_APP_PREFIX}'
-          # myECRRepoTag
-          tag: "${CIRCLE_BUILD_NUM}"
+          repo: "simple_plug_server"
+          tag: "${CIRCLE_BRANCH}_${CIRCLE_SHA1},${CIRCLE_BRANCH}_latest"
+          requires:
+            - test
+          filters:
+            branches:
+              only:
+                - master
+                - development
       # - aws-ecs/deploy-service-update:
+      #     name: deploy-development
       #     requires:
       #       - aws-ecr/build-and-push-image
-      #     aws-region: AWS_DEFAULT_REGION
-      #     family: '${MY_APP_PREFIX}-service'
-      #     cluster-name: '${MY_APP_PREFIX}-cluster'
-      #     container-image-name-updates: 'container=${MY_APP_PREFIX}-service,tag=${CIRCLE_SHA1}'
+      #     family: "simple-plug-server-development"
+      #     cluster-name: "SimplePlugServer-development"
+      #     service-name: "sps-dev-serv"
+      #     container-image-name-updates: "container=simple-plug-server-development,tag=${CIRCLE_BRANCH}_${CIRCLE_SHA1}"
+      #     filters:
+      #       branches:
+      #         only:
+      #           - development
+      # - approve-deploy:
+      #     type: approval
+      #     requires:
+      #       - aws-ecr/build-and-push-image
+      #     filters:
+      #       branches:
+      #         only:
+      #           - master
+      # - aws-ecs/deploy-service-update:
+      #     name: deploy-production
+      #     requires:
+      #       - approve-deploy
+      #     family: "simple-plug-server-production"
+      #     cluster-name: "SimplePlugServer-production"
+      #     service-name: "simple-plug-server-production"
+      #     container-image-name-updates: "container=simple-plug-server-production,tag=${CIRCLE_BRANCH}_${CIRCLE_SHA1}"
+      #     filters:
+      #       branches:
+      #         only:
+      #           - master
+
+
